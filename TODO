@@ -1,0 +1,49 @@
+x die tabelle statisch vorberechnen
+- benchmark-framework aufsetzen, zeiten messen (bzw. den test ausbauen)
+- maske mit SSE berechnen
+- weiteren ablauf mit SSE beschleunigen
+
+-> 1. plain old implementation
+   2. scalar implementation, maske/tabelle berechnen
+   3. scalar implementation, lookup-tabelle (groß)
+   4. das schnellste von 2/3 mit SSE-maske
+   5. masked vbyte
+   6. Alles SSE wenn möglich
+
+if (mask == 0)
+  pmovsxbd -> unpack bytes into integers
+
+mit pshufb in 4 _m128i-register à 4 integer aufsplitten:
+if (length > 0) {
+  m128i mask = _mm_set_epi8 (char b15, char b14,...);
+  pushfb(in, out[0], mask);
+  in += x;
+}
+if (length > 4) {
+  m128i mask = _mm_set_epi8 (char b15, char b14,...);
+  pushfb(in, out[4], mask);
+  in += x;
+}
+...
+http://stackoverflow.com/questions/16584520/sse2-instruction-to-load-integers-in-reverse-order
+
+dann alle bits "rausshiften"
+https://software.intel.com/en-us/forums/intel-isa-extensions/topic/285022
+
+- delta-encoding
+- schnelle lookup-funktion
+- schnelle select-funktion
+- schöne library draus machen
+
+
+== NOTES ==
+
+working on integers is more efficient than working with byte arrays:
+
+          uint32_t v = *(uint32_t *)&in[0];
+          *out =   ((v & 0x7F00u) >> 1)
+                 |  (v & 0x7Fu);
+
+    old:
+          *out =   ((in[1] & 0x7Fu) << 7)
+                  | (in[0] & 0x7Fu);
