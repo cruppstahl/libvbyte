@@ -39,14 +39,16 @@ test(uint32_t length)
                                "scalar1",
                                "scalar2",
                                "scalar3",
+                               "scalar5",
                                "masked "};
   uncompress_function fun[] = {vbyte_uncompress_plain,
                                vbyte_uncompress_scalar1,
                                vbyte_uncompress_scalar2,
                                vbyte_uncompress_scalar3,
+                               vbyte_uncompress_scalar5,
                                masked_vbyte_read_loop};
 
-  for (int i = 0; i < 5; i++) {
+  for (size_t i = 0; i < sizeof(fun) / sizeof(void *); i++) {
     Timer<boost::chrono::high_resolution_clock> t;
     for (int l = 0; l < loops; l++) {
       test_decompress(fun[i], plain, z, out, length);

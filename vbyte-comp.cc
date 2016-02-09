@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "vbyte.h"
-
 #include <assert.h>
 #include <string.h>
 
@@ -25,6 +23,8 @@ typedef signed char int8_t;
 #else
 #  include <stdint.h>
 #endif
+
+#include "vbyte.h"
 
 static inline int
 write_int(uint8_t *p, uint32_t value)

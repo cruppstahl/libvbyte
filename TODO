@@ -1,7 +1,7 @@
 x die tabelle statisch vorberechnen
-- benchmark-framework aufsetzen, zeiten messen (bzw. den test ausbauen)
-- maske mit SSE berechnen
-- weiteren ablauf mit SSE beschleunigen
+x benchmark-framework aufsetzen, zeiten messen (bzw. den test ausbauen)
+x maske mit SSE berechnen
+x weiteren ablauf mit SSE beschleunigen
 
 -> 1. plain old implementation
    2. scalar implementation, maske/tabelle berechnen
@@ -10,8 +10,29 @@ x die tabelle statisch vorberechnen
    5. masked vbyte
    6. Alles SSE wenn möglich
 
-if (mask == 0)
-  pmovsxbd -> unpack bytes into integers
+==================================================
+
+bislang keine verbesserung...
+wäre es nicht besser nur die "plain"-funktion zu unterstützen, aber
+mit templates (für uint32_t und uint64_t)?
+dank der mask könnte man leicht eine lookup-table bauen um ein richtig
+schnelles select/find zu implementieren. das wäre doch ausreichend -
+encode/decode ist offenbar schnell genug und nicht zu optimieren...
+
+die lookup-table benötigt dann nur 2 byte per line: (128 kb)
+    - num_bytes (für schnelles find)
+    - num_ints (für schnelles select)
+
+dann funktionen für
+- insert
+- append
+- erase
+- merge
+- find
+- select
+
+dann noch alles mit delta-encoding!?
+==================================================
 
 mit pshufb in 4 _m128i-register à 4 integer aufsplitten:
 if (length > 0) {

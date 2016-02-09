@@ -1,6 +1,8 @@
 #DEBUG=1
 
 .SUFFIXES: .cpp .o .c .h
+OBJECTS = vbyte-comp.o vbyte-plain.o vbyte-scalar1.o vbyte-scalar2.o \
+		  vbyte-scalar3.o vbyte-scalar4.o vbyte-scalar5.o varintdecode.o
 
 ifeq ($(DEBUG),1)
     CFLAGS = -g -pedantic -DDEBUG=1 -D_GLIBCXX_DEBUG -Wall -Wextra 
@@ -29,17 +31,23 @@ vbyte-scalar2.o: vbyte.h vbyte-scalar2.cc
 vbyte-scalar3.o: vbyte.h vbyte-scalar3.cc
 	$(CXX) $(CFLAGS) -msse3 -c vbyte-scalar3.cc
 
+vbyte-scalar4.o: vbyte.h vbyte-scalar4.cc
+	$(CXX) $(CFLAGS) -msse3 -mssse3 -c vbyte-scalar4.cc
+
+vbyte-scalar5.o: vbyte.h vbyte-scalar5.cc
+	$(CXX) $(CFLAGS) -msse4 -c vbyte-scalar5.cc
+
 varintdecode.o: vbyte.h varintdecode.c
 	$(CXX) $(CFLAGS) -mavx -c varintdecode.c
 
-vbyte: $(HEADERS) vbyte-comp.o vbyte-plain.o vbyte-scalar1.o vbyte-scalar2.o vbyte-scalar3.o varintdecode.o
-	ar rvs libvbyte.a vbyte-plain.o vbyte-scalar1.o vbyte-scalar2.o vbyte-scalar3.o varintdecode.o
+vbyte: $(HEADERS) $(OBJECTS)
+	ar rvs libvbyte.a $(OBJECTS)
 
 gen: gen.pl
 	perl gen.pl > vbyte-gen.c
 
-test: vbyte $(HEADERS) test.cc $(OBJECTS)
-	$(CXX) $(CFLAGS) -o test test.cc $(OBJECTS) libvbyte.a \
+test: vbyte $(HEADERS) test.cc
+	$(CXX) $(CFLAGS) -o test test.cc libvbyte.a \
 			-lboost_chrono -lboost_system
 
 clean: 

@@ -60,6 +60,15 @@ vbyte_uncompress_scalar2(const uint8_t *in, uint32_t *out, uint32_t length);
 extern uint32_t
 vbyte_uncompress_scalar3(const uint8_t *in, uint32_t *out, uint32_t length);
 
+/* fast mask, huge lookup table, pshufb to rearrange the data */
+/* broken, and terribly slow, therefore I won't bother to fix it */
+extern uint32_t
+vbyte_uncompress_scalar4(const uint8_t *in, uint32_t *out, uint32_t length);
+
+/* fast mask, huge lookup table, fast code path if mask == 0 */
+extern uint32_t
+vbyte_uncompress_scalar5(const uint8_t *in, uint32_t *out, uint32_t length);
+
 
 #ifdef __cplusplus
 } /* extern "C" */
