@@ -36,16 +36,8 @@ test(uint32_t length)
 
   int loops = 5;
   const char *codec_names[] = {"plain  ",
-                               "scalar1",
-                               "scalar2",
-                               "scalar3",
-                               "scalar5",
                                "masked "};
-  uncompress_function fun[] = {vbyte_uncompress_plain,
-                               vbyte_uncompress_scalar1,
-                               vbyte_uncompress_scalar2,
-                               vbyte_uncompress_scalar3,
-                               vbyte_uncompress_scalar5,
+  uncompress_function fun[] = {vbyte_uncompress,
                                masked_vbyte_read_loop};
 
   for (size_t i = 0; i < sizeof(fun) / sizeof(void *); i++) {

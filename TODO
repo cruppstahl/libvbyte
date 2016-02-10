@@ -1,63 +1,53 @@
-x die tabelle statisch vorberechnen
-x benchmark-framework aufsetzen, zeiten messen (bzw. den test ausbauen)
-x maske mit SSE berechnen
-x weiteren ablauf mit SSE beschleunigen
 
--> 1. plain old implementation
-   2. scalar implementation, maske/tabelle berechnen
-   3. scalar implementation, lookup-tabelle (groß)
-   4. das schnellste von 2/3 mit SSE-maske
-   5. masked vbyte
-   6. Alles SSE wenn möglich
+x remove unneeded code
+o implement plain encode/decode based on templates (32bit, 64bit)
+    o if AVX is enabled && length > 128: use (refactored) masked
+        vbyte routines for decoding
+    o add tests w/ random ints
+    o add tests w/ sequential ints (with different offsets, i.e. 0xffffff00!)
+    o add tests for 32bit and 64bit
 
-==================================================
+o calculate a lookup table with num_bytes, num_ints
 
-bislang keine verbesserung...
-wäre es nicht besser nur die "plain"-funktion zu unterstützen, aber
-mit templates (für uint32_t und uint64_t)?
-dank der mask könnte man leicht eine lookup-table bauen um ein richtig
-schnelles select/find zu implementieren. das wäre doch ausreichend -
-encode/decode ist offenbar schnell genug und nicht zu optimieren...
+o implement select function (32bit and 64bit)
+    - use the mask to retrieve info from the lookup table
+    - skip "num_ints" till we've reached the relevant block
+    - decompress the block, fetch the required item
+    o add tests (including maskedvbyte)
 
-die lookup-table benötigt dann nur 2 byte per line: (128 kb)
-    - num_bytes (für schnelles find)
-    - num_ints (für schnelles select)
+o implement find function
+    - use the mask to retrieve info from the lookup table
+    - skip "num_ints" till we've reached the relevant block
+    - decompress the block, fetch the required item
+    o add tests (including maskedvbyte)
 
-dann funktionen für
-- insert
-- append
-- erase
-- merge
-- find
-- select
+o implement append function
+    - seek to the end
+    - write the new value
+    - return the updated size
+    o add tests (including maskedvbyte)
 
-dann noch alles mit delta-encoding!?
-==================================================
+o implement insert function
+    - use the find function to seek the position
+    - insert the new value
+    - return the updated size
+    o add tests (including maskedvbyte)
 
-mit pshufb in 4 _m128i-register à 4 integer aufsplitten:
-if (length > 0) {
-  m128i mask = _mm_set_epi8 (char b15, char b14,...);
-  pushfb(in, out[0], mask);
-  in += x;
-}
-if (length > 4) {
-  m128i mask = _mm_set_epi8 (char b15, char b14,...);
-  pushfb(in, out[4], mask);
-  in += x;
-}
-...
-http://stackoverflow.com/questions/16584520/sse2-instruction-to-load-integers-in-reverse-order
+o implement erase function
+    - use the find function to seek the position
+    - remove the value
+    - return the updated size
+    o add tests (including maskedvbyte)
 
-dann alle bits "rausshiften"
-https://software.intel.com/en-us/forums/intel-isa-extensions/topic/285022
+o implement merge function
+    - concatenate both buffers
+    - return the updated size
+    o add tests
 
-- delta-encoding
-- schnelle lookup-funktion
-- schnelle select-funktion
-- schöne library draus machen
+o implement all of this for sorted data (suffix: _sorted), with delta
+    encoding
 
-
-== NOTES ==
+------------------------------------------------------------------------------
 
 working on integers is more efficient than working with byte arrays:
 

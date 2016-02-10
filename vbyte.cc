@@ -27,6 +27,26 @@ typedef signed char int8_t;
 #include "vbyte.h"
 
 static inline int
+read_int(const uint8_t *in, uint32_t *out)
+{
+  *out = in[0] & 0x7Fu;
+  if (in[0] < 128)
+    return 1;
+  *out = ((in[1] & 0x7Fu) << 7) | *out;
+  if (in[1] < 128)
+    return 2;
+  *out = ((in[2] & 0x7Fu) << 14) | *out;
+  if (in[2] < 128)
+    return 3;
+  *out = ((in[3] & 0x7Fu) << 21) | *out;
+  if (in[3] < 128)
+    return 4;
+  *out = ((in[4] & 0x7Fu) << 28) | *out;
+  return 5;
+}
+
+
+static inline int
 write_int(uint8_t *p, uint32_t value)
 {
   if (value < (1u << 7)) {
@@ -84,3 +104,35 @@ vbyte_compress(const uint32_t *in, uint8_t *out, uint32_t length)
   return out - initial_out;
 }
 
+uint32_t
+vbyte_uncompress(const uint8_t *in, uint32_t *out, uint32_t length)
+{
+  const uint8_t *initial_in = in;
+
+  for (uint32_t i = 0; i < length; i++) {
+    in += read_int(in, out);
+    ++out;
+  }
+  return in - initial_in;
+}
+
+/*
+static uint16_t
+extract_16_msbs(const uint8_t *in)
+{
+  __m128i v = _mm_lddqu_si128((const __m128i *)in);
+  return _mm_movemask_epi8(v);
+}
+
+struct lookup_line_t
+{
+  char num_ints;
+  char num_bytes;
+  char ints[16];
+};
+
+static lookup_line_t lookup_table[] = {
+#  include "vbyte-gen.i"
+};
+
+*/

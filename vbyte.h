@@ -46,28 +46,8 @@ vbyte_compress(const uint32_t *in, uint8_t *out, uint32_t length);
  * Returns the number of compressed bytes processed.
  */
 extern uint32_t
-vbyte_uncompress_plain(const uint8_t *in, uint32_t *out, uint32_t length);
+vbyte_uncompress(const uint8_t *in, uint32_t *out, uint32_t length);
 
-/* slow mask, slow calculation of lookup table entries */
-extern uint32_t
-vbyte_uncompress_scalar1(const uint8_t *in, uint32_t *out, uint32_t length);
-
-/* slow mask, huge lookup table */
-extern uint32_t
-vbyte_uncompress_scalar2(const uint8_t *in, uint32_t *out, uint32_t length);
-
-/* fast mask, huge lookup table */
-extern uint32_t
-vbyte_uncompress_scalar3(const uint8_t *in, uint32_t *out, uint32_t length);
-
-/* fast mask, huge lookup table, pshufb to rearrange the data */
-/* broken, and terribly slow, therefore I won't bother to fix it */
-extern uint32_t
-vbyte_uncompress_scalar4(const uint8_t *in, uint32_t *out, uint32_t length);
-
-/* fast mask, huge lookup table, fast code path if mask == 0 */
-extern uint32_t
-vbyte_uncompress_scalar5(const uint8_t *in, uint32_t *out, uint32_t length);
 
 
 #ifdef __cplusplus
