@@ -36,8 +36,10 @@ extern "C" {
  * Compresses an unsorted sequence of |length| ints at |in| and stores the
  * result in |out|.
  */
-extern uint32_t
-vbyte_compress(const uint32_t *in, uint8_t *out, uint32_t length);
+extern size_t
+vbyte_compress32(const uint32_t *in, uint8_t *out, size_t length);
+extern size_t
+vbyte_compress64(const uint64_t *in, uint8_t *out, size_t length);
 
 /**
  * Uncompresses a sequence of |length| ints at |in| and stores the
@@ -45,9 +47,43 @@ vbyte_compress(const uint32_t *in, uint8_t *out, uint32_t length);
  *
  * Returns the number of compressed bytes processed.
  */
-extern uint32_t
-vbyte_uncompress(const uint8_t *in, uint32_t *out, uint32_t length);
+extern size_t
+vbyte_uncompress32(const uint8_t *in, uint32_t *out, size_t length);
+extern size_t
+vbyte_uncompress64(const uint8_t *in, uint64_t *out, size_t length);
 
+
+/**
+ * Returns the value at the given |index| from a compressed sequence.
+ *
+ * |size| is the length of the byte array pointed to by |in|.
+ *
+ * Make sure that |index| does not exceed the length of the sequence.
+ */
+extern uint32_t
+vbyte_select32(const uint8_t *in, size_t size, size_t index);
+extern uint64_t
+vbyte_select64(const uint8_t *in, size_t size, size_t index);
+
+/**
+ * Performs a linear search for |value|.
+ *
+ * Returns the index of the found element, or |length| if the key was not
+ * found.
+ */
+extern size_t
+vbyte_linear_search32(const uint8_t *in, size_t length, uint32_t value,
+                uint32_t *presult);
+extern size_t
+vbyte_linear_search64(const uint8_t *in, size_t length, uint64_t value,
+                uint64_t *presult);
+
+extern size_t
+vbyte_sorted_search32(const uint8_t *in, size_t length, uint32_t value,
+                uint32_t *presult);
+extern size_t
+vbyte_sorted_search64(const uint8_t *in, size_t length, uint64_t value,
+                uint64_t *presult);
 
 
 #ifdef __cplusplus

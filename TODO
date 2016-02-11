@@ -1,31 +1,38 @@
 
 x remove unneeded code
-o implement plain encode/decode based on templates (32bit, 64bit)
-    o if AVX is enabled && length > 128: use (refactored) masked
-        vbyte routines for decoding
-    o add tests w/ random ints
-    o add tests w/ sequential ints (with different offsets, i.e. 0xffffff00!)
-    o add tests for 32bit and 64bit
+x implement plain encode/decode based on templates (32bit, 64bit)
+    x implement template-based code
+    x add tests for 64bit
+    x add tests w/ random ints
+    x use time as seed, but print seed to stdout
 
-o calculate a lookup table with num_bytes, num_ints
+x calculate a lookup table with num_bytes, num_ints
 
-o implement select function (32bit and 64bit)
+x implement select function (32bit and 64bit)
     - use the mask to retrieve info from the lookup table
     - skip "num_ints" till we've reached the relevant block
     - decompress the block, fetch the required item
-    o add tests (including maskedvbyte)
+    x implement for 32bit
+    x add tests (including maskedvbyte)
+    x implement for 64bit
 
-o implement find function
-    - use the mask to retrieve info from the lookup table
-    - skip "num_ints" till we've reached the relevant block
-    - decompress the block, fetch the required item
-    o add tests (including maskedvbyte)
+x implement find function
+    x has to perform a linear search b/c data is not sorted :-/
+    x implement for 32bit
+    x implement for 64bit
+    x add tests (including maskedvbyte)
+
+x implement find_sorted function
+    x can skip keys like the select function
+    x implement for 32bit
+    x implement for 64bit
+    x add tests (including maskedvbyte)
 
 o implement append function
     - seek to the end
     - write the new value
     - return the updated size
-    o add tests (including maskedvbyte)
+    o add tests
 
 o implement insert function
     - use the find function to seek the position
@@ -44,8 +51,20 @@ o implement merge function
     - return the updated size
     o add tests
 
+o decode: if AVX is enabled && length > 128: use (refactored) masked
+    vbyte routines for decoding
+o find (linear): if AVX is enabled && length > 128: use (refactored) masked
+    vbyte routines for searching (currently broken!)
+o find (sorted): also use masked vbyte routine, it's still faster :-/
+
 o implement all of this for sorted data (suffix: _sorted), with delta
     encoding
+
+o implement find function for sorted data
+    - use the mask to retrieve info from the lookup table
+    - skip "num_ints" till we've reached the relevant block
+    - decompress the block, fetch the required item
+    o add tests (including maskedvbyte)
 
 ------------------------------------------------------------------------------
 

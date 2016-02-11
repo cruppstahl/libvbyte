@@ -16,7 +16,7 @@ all: test libvbyte.a
 	echo "please run unit tests by running ./test"
 
 vbyte.o: vbyte.h vbyte.cc
-	$(CXX) $(CFLAGS) -c vbyte.cc
+	$(CXX) $(CFLAGS) -msse3 -c vbyte.cc
 
 varintdecode.o: vbyte.h varintdecode.c
 	$(CXX) $(CFLAGS) -mavx -c varintdecode.c

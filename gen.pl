@@ -21,21 +21,21 @@ sub calc_ints
 sub print_list
 {
   my $mask = shift;
-  printf("  /* %02x */", $mask);
+  printf("  /* %04x */", $mask);
   my @list = @{$_[0]};
   my $l = scalar(@list);
   my $s = sum(@list) || 0;
-  print "  {$l, $s, ";
-  my $i = 0;
-  for (; $i < scalar(@list); $i++) {
-    print $list[$i];
-    print ", " if ($i < 15);
-  }
-  for (; $i < 16; $i++) {
-    print "0";
-    print ", " if ($i < 15);
-  }
-  print "},\n";
+  print "  {$l, $s},\n";
+  #my $i = 0;
+  #for (; $i < scalar(@list); $i++) {
+  #  print $list[$i];
+  #  print ", " if ($i < 15);
+  #}
+  #for (; $i < 16; $i++) {
+  #  print "0";
+  #  print ", " if ($i < 15);
+  #}
+  #print "},\n";
 }
 
 sub is_too_full
