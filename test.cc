@@ -3,283 +3,271 @@
 #include <stdio.h>
 #include <assert.h>
 #include <ctime>
+#include <set>
 
 #include <boost/random.hpp>
 #include <boost/random/uniform_01.hpp>
 
 #include "timer.h"
 #include "vbyte.h"
+#include "varintdecode.h"
 
-extern void simdvbyteinit();
-extern size_t masked_vbyte_read_loop(const uint8_t* in, uint32_t* out,
-                              size_t length);
-extern uint32_t masked_vbyte_select(const uint8_t *in, size_t length,
-                              size_t slot);
-extern int masked_vbyte_search(const uint8_t *in, uint64_t length,
-                              uint32_t key, uint32_t *presult);
+static const int loops = 5;
 
-typedef size_t (*uncompress_function)(const uint8_t *, uint32_t *, size_t);
-
-uint32_t seed = 0;
-
+template<typename Traits>
 static void
-test_select32(const std::vector<uint32_t> &plain,
-                const std::vector<uint8_t> &z)
+run_compression_test(std::vector<typename Traits::type> &plain,
+                std::vector<uint8_t> &z)
 {
-  int loops = 5;
-  uint32_t length = plain.size();
-
-  {
-    Timer<boost::chrono::high_resolution_clock> t;
-    for (int l = 0; l < loops; l++) {
-      for (uint32_t i = 0; i < length; i += 1 + length / 100) {
-        uint32_t v = vbyte_select32(&z[0], z.size(), i);
-        assert(plain[i] == v);
-      }
-    }
-    printf("sel %s %u -> %f\n", "plain32", (uint32_t)length,
-                    t.seconds() / loops);
-  }
-
-  // masked vbyte select's 2nd parameter is the length of the sequence
-  //    (in elements), not the size (in bytes)
-  {
-    Timer<boost::chrono::high_resolution_clock> t;
-    for (int l = 0; l < loops; l++) {
-      for (uint32_t i = 0; i < length; i += 1 + length / 500) {
-        uint32_t v = masked_vbyte_select(&z[0], length, i);
-        assert(plain[i] == v);
-      }
-    }
-    printf("sel %s %u -> %f\n", "masked ", (uint32_t)length,
-                    t.seconds() / loops);
-  }
+  size_t len = Traits::compress(&plain[0], &z[0], plain.size());
+  z.resize(len);
+  assert(len == Traits::compressed_size(&plain[0], plain.size()));
 }
 
+template<typename Traits>
 static void
-test_find32(const std::vector<uint32_t> &plain,
-                const std::vector<uint8_t> &z, bool sorted)
+run_uncompression_test(const std::vector<typename Traits::type> &plain,
+                std::vector<uint8_t> &z,
+                std::vector<typename Traits::type> &out)
 {
-  int loops = 5;
-  uint32_t length = plain.size();
-
-  {
-    Timer<boost::chrono::high_resolution_clock> t;
-    for (int l = 0; l < loops; l++) {
-      for (uint32_t i = 0; i < length; i += 1 + length / 5000) {
-        uint32_t found;
-        size_t pos;
-        if (sorted)
-          pos = vbyte_sorted_search32(&z[0], z.size(), plain[i], &found);
-        else
-          pos = vbyte_linear_search32(&z[0], z.size(), plain[i], &found);
-        assert(i == pos);
-        assert(plain[i] == found);
-      }
-    }
-    printf("fnd plain32 (%ssorted) %u -> %f\n", sorted ? "" : "not ",
-                   (uint32_t)length, t.seconds() / loops);
-  }
-
-  // masked vbyte select's 2nd parameter is the length of the sequence
-  //    (in elements), not the size (in bytes)
-  {
-    Timer<boost::chrono::high_resolution_clock> t;
-    for (int l = 0; l < loops; l++) {
-      for (uint32_t i = 0; i < length; i += 1 + length / 5000) {
-        uint32_t found;
-        masked_vbyte_search(&z[0], z.size(), plain[i], &found);
-        // assert((int)i == pos); Ignore - broken anyway
-        // assert(plain[i] == found);
-      }
-    }
-    printf("fnd masked  %u -> %f\n", (uint32_t)length, t.seconds() / loops);
-  }
-}
-
-static void
-test_select64(const std::vector<uint64_t> &plain,
-                const std::vector<uint8_t> &z)
-{
-  int loops = 5;
-  uint32_t length = plain.size();
-
-  {
-    Timer<boost::chrono::high_resolution_clock> t;
-    for (int l = 0; l < loops; l++) {
-      for (uint32_t i = 0; i < length; i += 1 + length / 100) {
-        uint64_t v = vbyte_select64(&z[0], z.size(), i);
-        assert(plain[i] == v);
-      }
-    }
-    printf("sel %s %u -> %f\n", "plain64", (uint32_t)length,
-                    t.seconds() / loops);
-  }
-}
-
-static void
-test_find64(const std::vector<uint64_t> &plain,
-                const std::vector<uint8_t> &z, bool sorted)
-{
-  int loops = 5;
-  uint32_t length = plain.size();
-
-  {
-    Timer<boost::chrono::high_resolution_clock> t;
-    for (int l = 0; l < loops; l++) {
-      for (uint32_t i = 0; i < length; i += 1 + length / 5000) {
-        uint64_t found;
-        size_t pos;
-        if (sorted)
-          pos = vbyte_sorted_search64(&z[0], z.size(), plain[i], &found);
-        else
-          pos = vbyte_linear_search64(&z[0], z.size(), plain[i], &found);
-        assert(i == pos);
-        assert(plain[i] == found);
-      }
-    }
-    printf("fnd plain64 (%ssorted) %u -> %f\n", sorted ? "" : "not ",
-                    (uint32_t)length, t.seconds() / loops);
-  }
-}
-
-static void
-test32_asc(size_t length)
-{
-  std::vector<uint32_t> plain;
-  std::vector<uint8_t> z(length * 5);
-  std::vector<uint32_t> out(length);
-
-  for (uint32_t i = 0; i < length; i++)
-    plain.push_back(i * 7);
-
-  vbyte_compress32(&plain[0], &z[0], length);
-
-  int loops = 5;
-  const char *codec_names[] = {"plain32",
-                               "masked "};
-  uncompress_function defun[] = {vbyte_uncompress32,
-                                 masked_vbyte_read_loop};
-
-  for (size_t i = 0; i < sizeof(defun) / sizeof(void *); i++) {
-    Timer<boost::chrono::high_resolution_clock> t;
-    for (int l = 0; l < loops; l++) {
-      defun[i](&z[0], &out[0], length);
-      for (uint32_t i = 0; i < length; i++)
-        assert(plain[i] == out[i]);
-    }
-    printf("asc %s %u -> %f\n", codec_names[i], (uint32_t)length,
-                    t.seconds() / loops);
-  }
-
-  test_select32(plain, z);
-  test_find32(plain, z, true);
-}
-
-inline static void
-test32_rnd(size_t length)
-{
-  std::vector<uint32_t> plain;
-  std::vector<uint8_t> z(length * 5);
-  std::vector<uint32_t> out(length);
-  boost::mt19937 rng;
-  rng.seed(seed);
-
-  for (uint32_t i = 0; i < length; i++)
-    plain.push_back(rng());
-
-  vbyte_compress32(&plain[0], &z[0], length);
-
-  int loops = 5;
-  const char *codec_names[] = {"plain32",
-                               "masked "};
-  uncompress_function fun[] = {vbyte_uncompress32,
-                               masked_vbyte_read_loop};
-
-  for (size_t i = 0; i < sizeof(fun) / sizeof(void *); i++) {
-    Timer<boost::chrono::high_resolution_clock> t;
-    for (int l = 0; l < loops; l++) {
-      fun[i](&z[0], &out[0], length);
-      for (uint32_t i = 0; i < length; i++)
-        assert(plain[i] == out[i]);
-    }
-    printf("rnd %s %u -> %f\n", codec_names[i], (uint32_t)length,
-                    t.seconds() / loops);
-  }
-
-  test_select32(plain, z);
-  test_find32(plain, z, false);
-}
-
-inline static void
-test64_asc(size_t length)
-{
-  std::vector<uint64_t> plain;
-  std::vector<uint8_t> z(length * 9);
-  std::vector<uint64_t> out(length);
-
-  for (uint32_t i = 0; i < length; i++)
-    plain.push_back(i * 7);
-
-  vbyte_compress64(&plain[0], &z[0], length);
-
-  int loops = 5;
   Timer<boost::chrono::high_resolution_clock> t;
   for (int l = 0; l < loops; l++) {
-    vbyte_uncompress64(&z[0], &out[0], length);
-    for (uint32_t i = 0; i < length; i++)
-      assert(plain[i] == out[i]);
+    Traits::uncompress(&z[0], &out[0], plain.size());
+    for (uint32_t j = 0; j < plain.size(); j++)
+      assert(plain[j] == out[j]);
   }
-  printf("asc %s %u -> %f\n", "plain64", (uint32_t)length, t.seconds() / loops);
-
-  test_select64(plain, z);
-  test_find64(plain, z, true);
+  printf("    %s decode -> %f\n", Traits::name, t.seconds() / loops);
 }
 
-inline static void
-test64_rnd(size_t length)
+template<typename Traits>
+static void
+run_select_test(const std::vector<typename Traits::type> &plain,
+                std::vector<uint8_t> &z)
 {
-  std::vector<uint64_t> plain;
+  Timer<boost::chrono::high_resolution_clock> t;
+  for (int l = 0; l < loops; l++) {
+    for (uint32_t i = 0; i < plain.size(); i += 1 + plain.size() / 100) {
+      uint32_t v = Traits::select(&z[0], z.size(), i);
+      assert(plain[i] == v);
+    }
+  }
+  printf("    %s select -> %f\n", Traits::name, t.seconds() / loops);
+}
+
+template<typename Traits>
+static void
+run_search_test(const std::vector<typename Traits::type> &plain,
+                std::vector<uint8_t> &z)
+{
+  Timer<boost::chrono::high_resolution_clock> t;
+  for (int l = 0; l < loops; l++) {
+    for (size_t i = 0; i < plain.size(); i += 1 + plain.size() / 5000) {
+      typename Traits::type found;
+      size_t pos = Traits::search(&z[0], z.size(), plain[i], &found);
+      assert(found == plain[i]);
+      assert(i == pos);
+    }
+  }
+  printf("    %s search -> %f\n", Traits::name, t.seconds() / loops);
+}
+
+template<typename Traits>
+static void
+run_append_test(std::vector<typename Traits::type> &plain,
+                std::vector<uint8_t> &z)
+{
+  size_t zsize = z.size();
+
+  z.reserve(z.size() + 1024);
+
+  Timer<boost::chrono::high_resolution_clock> t;
+  for (uint32_t i = 0; i < 100; i++) {
+    typename Traits::type highest = plain[plain.size() - 1];
+    typename Traits::type value = highest + 5;
+    size_t size = Traits::append(z.data() + zsize, highest, value);
+    zsize += size;
+    plain.push_back(value);
+  }
+  printf("    %s append -> %f\n", Traits::name, t.seconds() / loops);
+
+  // verify
+  for (uint32_t i = 1; i <= 100; i++) {
+    typename Traits::type sel = Traits::select(&z[0], zsize, plain.size() - i);
+    assert(sel == plain[plain.size() - i]);
+  }
+}
+
+template<typename Traits>
+static void
+run_tests(size_t length)
+{
+  std::vector<typename Traits::type> plain;
   std::vector<uint8_t> z(length * 10);
-  std::vector<uint64_t> out(length);
-  boost::mt19937_64 rng;
-  rng.seed(seed);
+  std::vector<typename Traits::type> out(length);
 
-  for (uint32_t i = 0; i < length; i++)
-    plain.push_back(rng());
+  for (size_t i = 0; i < length; i++)
+    plain.push_back(i * 7);
 
-  vbyte_compress64(&plain[0], &z[0], length);
+  // compress the data
+  run_compression_test<Traits>(plain, z);
 
-  int loops = 5;
-  Timer<boost::chrono::high_resolution_clock> t;
-  for (int l = 0; l < loops; l++) {
-    vbyte_uncompress64(&z[0], &out[0], length);
-    for (uint32_t i = 0; i < length; i++)
-      assert(plain[i] == out[i]);
-  }
-  printf("rnd %s %u -> %f\n", "plain64", (uint32_t)length, t.seconds() / loops);
+  // uncompress the data
+  run_uncompression_test<Traits>(plain, z, out);
 
-  test_select64(plain, z);
-  test_find64(plain, z, false);
+  // select values
+  run_select_test<Traits>(plain, z);
+
+  // search for keys
+  run_search_test<Traits>(plain, z);
+
+  // append keys. Will modify |plain| and |z|!
+  run_append_test<Traits>(plain, z);
 }
+
+struct Sorted32Traits {
+  typedef uint32_t type;
+  static constexpr const char *name = "Sorted32";
+
+  static size_t compress(const type *in, uint8_t *out, size_t length) {
+    return vbyte_compress_sorted32(in, out, length);
+  }
+  
+  static size_t compressed_size(const type *in, size_t length) {
+    return vbyte_compressed_size_sorted32(in, length);
+  }
+
+  static size_t uncompress(const uint8_t *in, type *out, size_t length) {
+    return vbyte_uncompress_sorted32(in, out, length);
+  } 
+
+  static type select(const uint8_t *in, size_t length, size_t index) {
+    return vbyte_select_sorted32(in, length, index);
+  } 
+
+  static size_t search(const uint8_t *in, size_t length, type value,
+                  type *result) {
+    return vbyte_search_lower_bound_sorted32(in, length, value, result);
+  }
+
+  static size_t append(uint8_t *end, type highest, type value) {
+    return vbyte_append_sorted64(end, highest, value);
+  }
+};
+
+struct Sorted64Traits {
+  typedef uint64_t type;
+  static constexpr const char *name = "Sorted64";
+
+  static size_t compress(const type *in, uint8_t *out, size_t length) {
+    return vbyte_compress_sorted64(in, out, length);
+  }
+
+  static size_t compressed_size(const type *in, size_t length) {
+    return vbyte_compressed_size_sorted64(in, length);
+  }
+
+  static size_t uncompress(const uint8_t *in, type *out, size_t length) {
+    return vbyte_uncompress_sorted64(in, out, length);
+  } 
+
+  static type select(const uint8_t *in, size_t length, size_t index) {
+    return vbyte_select_sorted64(in, length, index);
+  } 
+
+  static size_t search(const uint8_t *in, size_t length, type value,
+                  type *result) {
+    return vbyte_search_lower_bound_sorted64(in, length, value, result);
+  }
+
+  static size_t append(uint8_t *end, type highest, type value) {
+    return vbyte_append_sorted64(end, highest, value);
+  }
+};
+
+struct Unsorted32Traits {
+  typedef uint32_t type;
+  static constexpr const char *name = "Unsorted32";
+
+  static size_t compress(const type *in, uint8_t *out, size_t length) {
+    return vbyte_compress_unsorted32(in, out, length);
+  }
+
+  static size_t compressed_size(const type *in, size_t length) {
+    return vbyte_compressed_size_unsorted32(in, length);
+  }
+
+  static size_t uncompress(const uint8_t *in, type *out, size_t length) {
+    return vbyte_uncompress_unsorted32(in, out, length);
+  } 
+
+  static type select(const uint8_t *in, size_t length, size_t index) {
+    return vbyte_select_unsorted32(in, length, index);
+  } 
+
+  static size_t search(const uint8_t *in, size_t length, type value,
+                  type *result) {
+    *result = value;
+    return vbyte_search_unsorted32(in, length, value);
+  }
+
+  static size_t append(uint8_t *end, type, type value) {
+    return vbyte_append_unsorted32(end, value);
+  }
+};
+
+struct Unsorted64Traits {
+  typedef uint64_t type;
+  static constexpr const char *name = "Unsorted64";
+
+  static size_t compress(const type *in, uint8_t *out, size_t length) {
+    return vbyte_compress_unsorted64(in, out, length);
+  }
+
+  static size_t compressed_size(const type *in, size_t length) {
+    return vbyte_compressed_size_unsorted64(in, length);
+  }
+
+  static size_t uncompress(const uint8_t *in, type *out, size_t length) {
+    return vbyte_uncompress_unsorted64(in, out, length);
+  } 
+
+  static type select(const uint8_t *in, size_t length, size_t index) {
+    return vbyte_select_unsorted64(in, length, index);
+  } 
+
+  static size_t search(const uint8_t *in, size_t length, type value,
+                  type *result) {
+    *result = value;
+    return vbyte_search_unsorted64(in, length, value);
+  }
+
+  static size_t append(uint8_t *end, type, type value) {
+    return vbyte_append_unsorted64(end, value);
+  }
+};
 
 inline static void
 test(size_t length)
 {
-  test32_asc(length);
-  test64_asc(length);
-  test32_rnd(length);
-  test64_rnd(length);
-  printf("\n");
+  printf("%u, sorted, 32bit\n", (uint32_t)length);
+  run_tests<Sorted32Traits>(length);
+
+  printf("%u, sorted, 64bit\n", (uint32_t)length);
+  run_tests<Sorted64Traits>(length);
+
+  printf("%u, unsorted, 32bit\n", (uint32_t)length);
+  run_tests<Unsorted32Traits>(length);
+
+  printf("%u, unsorted, 64bit\n", (uint32_t)length);
+  run_tests<Unsorted64Traits>(length);
 }
 
 int
 main()
 {
-  seed = std::time(0);
+  uint32_t seed = std::time(0);
   printf("seed: %u\n", seed);
 
-  simdvbyteinit();
   test(1);
   test(2);
   test(10);

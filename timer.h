@@ -27,23 +27,25 @@ using namespace boost::chrono;
 // based on
 // http://www.boost.org/doc/libs/1_54_0/libs/chrono/example/await_keystroke.cpp
 template<class Clock>
-class Timer
-{
-    typename Clock::time_point start;
+struct Timer {
+  typename Clock::time_point _start;
 
-  public:
-    Timer()
-      : start(Clock::now()) {
-    }
+  Timer() {
+    start();
+  }
 
-    typename Clock::duration elapsed() const {
-      return (Clock::now() - start);
-    }
+  void start() {
+    _start = Clock::now(); 
+  }
 
-    double seconds() const {
-      return (elapsed().count() *
-            ((double)Clock::period::num / Clock::period::den));
-    }
+  typename Clock::duration elapsed() const {
+    return Clock::now() - _start;
+  }
+
+  double seconds() const {
+    return elapsed().count() *
+            ((double)Clock::period::num / Clock::period::den);
+  }
 };
 
 #endif // UPS_BENCH_TIMER_H
