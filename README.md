@@ -53,8 +53,8 @@ Compile time configuration
 ----------------------
 
 The Makefile automatically enables use of MaskedVbyte (SSE/AVX). If your
-code should run on older platforms then undefine CFLAGS in the Makefile
-(at the very top of the file).
+code should run on older platforms then undefine VBYTE_CFLAGS in the
+Makefile (at the very top of the file).
 
 MaskedVbyte can be compiled with AVX and AVX2. The code currently uses AVX.
 If you want to use AVX2 instead then change the compiler setting in

@@ -1,5 +1,5 @@
 #DEBUG=1
-CFLAGS=-mavx 		# undefine this to compile on non-intel platforms.
+VBYTE_CFLAGS=-mavx 	# undefine this to compile on non-intel platforms.
 
 # -------------------------------------------------------
 
@@ -7,9 +7,9 @@ CFLAGS=-mavx 		# undefine this to compile on non-intel platforms.
 OBJECTS = vbyte.o varintdecode.o
 
 ifeq ($(DEBUG),1)
-    CFLAGS += -g -pedantic -DDEBUG=1 -D_GLIBCXX_DEBUG -Wall -Wextra 
+    CFLAGS = -g -pedantic -DDEBUG=1 -D_GLIBCXX_DEBUG -Wall -Wextra 
 else
-    CFLAGS += -g -pedantic -Wall -Wextra -O3
+    CFLAGS = -g -pedantic -Wall -Wextra -O3
 endif #debug
 
 
@@ -19,7 +19,7 @@ all: test libvbyte.a
 	echo "please run unit tests by running ./test"
 
 vbyte.o: vbyte.h vbyte.cc
-	$(CXX) $(CFLAGS) -c vbyte.cc
+	$(CXX) $(CFLAGS) $(VBYTE_CFLAGS) -c vbyte.cc
 
 varintdecode.o: vbyte.h varintdecode.c
 	$(CXX) $(CFLAGS) -mavx -c varintdecode.c
