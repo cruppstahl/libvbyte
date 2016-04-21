@@ -33,6 +33,62 @@ typedef signed char int8_t;
 
 namespace vbyte {
 
+#ifdef __SSE2__
+
+// AVX might be enabled at compile time, but it's still possible that
+// it's not available at run-time because the CPU is an older model.
+
+// from http://stackoverflow.com/questions/6121792/how-to-check-if-a-cpu-supports-the-sse3-instruction-set
+
+#ifdef _WIN32
+//  Windows
+#  include <intrin.h>
+#  define cpuid    __cpuid
+#else
+//  GCC Inline Assembly
+static void
+cpuid(int cpuinfo[4], int infotype) {
+  __asm__ __volatile__ (
+      "cpuid":
+      "=a" (cpuinfo[0]),
+      "=b" (cpuinfo[1]),
+      "=c" (cpuinfo[2]),
+      "=d" (cpuinfo[3]) :
+      "a" (infotype)
+  );
+}
+#endif
+
+static inline bool
+is_avx_available()
+{
+  static bool available = false;
+  static bool initialized = false;
+  if (!initialized) {
+    initialized = true;
+
+    int info[4];
+    cpuid(info, 0);
+    int num_ids = info[0];
+    cpuid(info, 0x80000000);
+
+    //  Detect Instruction Set
+    if (num_ids >= 1) {
+      cpuid(info, 0x00000001);
+      available = (info[2] & ((int)1 << 28)) != 0;
+    }
+  }
+
+  return available;
+}
+#else
+static inline bool
+is_avx_available()
+{
+  return false;
+}
+#endif
+
 static inline int
 read_int(const uint8_t *in, uint32_t *out)
 {
@@ -491,10 +547,10 @@ size_t
 vbyte_uncompress_unsorted32(const uint8_t *in, uint32_t *out, size_t length)
 {
 #if defined(USE_MASKEDVBYTE)
-  return masked_vbyte_decode(in, out, (uint64_t)length);
-#else
-  return vbyte::uncompress_unsorted(in, out, length);
+  if (vbyte::is_avx_available())
+    return masked_vbyte_decode(in, out, (uint64_t)length);
 #endif
+  return vbyte::uncompress_unsorted(in, out, length);
 }
 
 size_t
@@ -519,10 +575,10 @@ size_t
 vbyte_uncompress_sorted32(const uint8_t *in, uint32_t *out, size_t length)
 {
 #if defined(USE_MASKEDVBYTE)
-  return masked_vbyte_decode_delta(in, out, (uint64_t)length, 0);
-#else
-  return vbyte::uncompress_sorted(in, out, length);
+  if (vbyte::is_avx_available())
+    return masked_vbyte_decode_delta(in, out, (uint64_t)length, 0);
 #endif
+  return vbyte::uncompress_sorted(in, out, length);
 }
 
 size_t
@@ -536,10 +592,10 @@ vbyte_select_sorted32(const uint8_t *in, size_t size, size_t index)
 {
   (void)size;
 #if defined(USE_MASKEDVBYTE)
-  return masked_vbyte_select_delta(in, (uint64_t)size, 0, index);
-#else
-  return vbyte::select_sorted<uint32_t>(in, index);
+  if (vbyte::is_avx_available())
+    return masked_vbyte_select_delta(in, (uint64_t)size, 0, index);
 #endif
+  return vbyte::select_sorted<uint32_t>(in, index);
 }
 
 uint64_t
@@ -580,11 +636,11 @@ vbyte_search_lower_bound_sorted32(const uint8_t *in, size_t length,
                 uint32_t value, uint32_t *actual)
 {
 #if defined(USE_MASKEDVBYTE)
-  return (size_t)masked_vbyte_search_delta(in, (uint64_t)length, 0,
+  if (vbyte::is_avx_available())
+    return (size_t)masked_vbyte_search_delta(in, (uint64_t)length, 0,
                   value, actual);
-#else
-  return vbyte::sorted_search(in, length, value, actual);
 #endif
+  return vbyte::sorted_search(in, length, value, actual);
 }
 
 size_t
