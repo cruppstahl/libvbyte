@@ -129,24 +129,24 @@ struct Sorted32Traits {
   static constexpr const char *name = "Sorted32";
 
   static size_t compress(const type *in, uint8_t *out, size_t length) {
-    return vbyte_compress_sorted32(in, out, length);
+    return vbyte_compress_sorted32(in, out, 0, length);
   }
   
   static size_t compressed_size(const type *in, size_t length) {
-    return vbyte_compressed_size_sorted32(in, length);
+    return vbyte_compressed_size_sorted32(in, length, 0);
   }
 
   static size_t uncompress(const uint8_t *in, type *out, size_t length) {
-    return vbyte_uncompress_sorted32(in, out, length);
+    return vbyte_uncompress_sorted32(in, out, 0, length);
   } 
 
   static type select(const uint8_t *in, size_t length, size_t index) {
-    return vbyte_select_sorted32(in, length, index);
+    return vbyte_select_sorted32(in, length, 0, index);
   } 
 
   static size_t search(const uint8_t *in, size_t length, type value,
                   type *result) {
-    return vbyte_search_lower_bound_sorted32(in, length, value, result);
+    return vbyte_search_lower_bound_sorted32(in, length, value, 0, result);
   }
 
   static size_t append(uint8_t *end, type highest, type value) {
@@ -159,24 +159,24 @@ struct Sorted64Traits {
   static constexpr const char *name = "Sorted64";
 
   static size_t compress(const type *in, uint8_t *out, size_t length) {
-    return vbyte_compress_sorted64(in, out, length);
+    return vbyte_compress_sorted64(in, out, 0, length);
   }
 
   static size_t compressed_size(const type *in, size_t length) {
-    return vbyte_compressed_size_sorted64(in, length);
+    return vbyte_compressed_size_sorted64(in, length, 0);
   }
 
   static size_t uncompress(const uint8_t *in, type *out, size_t length) {
-    return vbyte_uncompress_sorted64(in, out, length);
+    return vbyte_uncompress_sorted64(in, out, 0, length);
   } 
 
   static type select(const uint8_t *in, size_t length, size_t index) {
-    return vbyte_select_sorted64(in, length, index);
+    return vbyte_select_sorted64(in, length, 0, index);
   } 
 
   static size_t search(const uint8_t *in, size_t length, type value,
                   type *result) {
-    return vbyte_search_lower_bound_sorted64(in, length, value, result);
+    return vbyte_search_lower_bound_sorted64(in, length, value, 0, result);
   }
 
   static size_t append(uint8_t *end, type highest, type value) {

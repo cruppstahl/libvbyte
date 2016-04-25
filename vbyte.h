@@ -39,10 +39,12 @@ extern "C" {
  * This calculation is relatively expensive. As a cheap estimate, simply
  * multiply the number of integers by 5.
  *
- * This function uses delta encoding.
+ * This function uses delta encoding. Set |previous| to the initial value,
+ * or 0.
  */
 extern size_t
-vbyte_compressed_size_sorted32(const uint32_t *in, size_t length);
+vbyte_compressed_size_sorted32(const uint32_t *in, size_t length,
+                uint32_t previous);
 
 /**
  * Calculates the size (in bytes) of a compressed stream of sorted 64bit
@@ -51,10 +53,12 @@ vbyte_compressed_size_sorted32(const uint32_t *in, size_t length);
  * This calculation is relatively expensive. As a cheap estimate, simply
  * multiply the number of integers by 5.
  *
- * This function uses delta encoding.
+ * This function uses delta encoding. Set |previous| to the initial value,
+ * or 0.
  */
 extern size_t
-vbyte_compressed_size_sorted64(const uint64_t *in, size_t length);
+vbyte_compressed_size_sorted64(const uint64_t *in, size_t length,
+                uint64_t previous);
 
 /**
  * Calculates the size (in bytes) of a compressed stream of unsorted 32bit
@@ -99,6 +103,28 @@ extern size_t
 vbyte_compress_unsorted64(const uint64_t *in, uint8_t *out, size_t length);
 
 /**
+ * Compresses a sorted sequence of |length| 32bit unsigned integers
+ * at |in| and stores the result in |out|.
+ *
+ * This function uses delta encoding. Set |previous| to the initial value,
+ * or 0.
+ */
+extern size_t
+vbyte_compress_sorted32(const uint32_t *in, uint8_t *out, uint32_t previous,
+                size_t length);
+
+/**
+ * Compresses a sorted sequence of |length| 64bit unsigned integers
+ * at |in| and stores the result in |out|.
+ *
+ * This function uses delta encoding. Set |previous| to the initial value,
+ * or 0.
+ */
+extern size_t
+vbyte_compress_sorted64(const uint64_t *in, uint8_t *out, uint64_t previous,
+                size_t length);
+
+/**
  * Uncompresses a sequence of |length| 32bit unsigned integers at |in|
  * and stores the result in |out|.
  *
@@ -123,70 +149,60 @@ extern size_t
 vbyte_uncompress_unsorted64(const uint8_t *in, uint64_t *out, size_t length);
 
 /**
- * Compresses a sorted sequence of |length| 32bit unsigned integers
- * at |in| and stores the result in |out|.
- *
- * This function uses delta encoding.
- */
-extern size_t
-vbyte_compress_sorted32(const uint32_t *in, uint8_t *out, size_t length);
-
-/**
- * Compresses a sorted sequence of |length| 64bit unsigned integers
- * at |in| and stores the result in |out|.
- *
- * This function uses delta encoding.
- */
-extern size_t
-vbyte_compress_sorted64(const uint64_t *in, uint8_t *out, size_t length);
-
-/**
  * Uncompresses a sequence of |length| 32bit unsigned integers at |in|
  * and stores the result in |out|.
  *
- * This is the equivalent of |vbyte_compress_sorted32|. It uses
- * delta encoding.
+ * This is the equivalent of |vbyte_compress_sorted32|.
+ * This function uses delta encoding. Set |previous| to the initial value,
+ * or 0.
  *
  * Returns the number of compressed bytes processed.
  */
 extern size_t
-vbyte_uncompress_sorted32(const uint8_t *in, uint32_t *out, size_t length);
+vbyte_uncompress_sorted32(const uint8_t *in, uint32_t *out, uint32_t previous,
+                size_t length);
 
 /**
  * Uncompresses a sequence of |length| 64bit unsigned integers at |in|
  * and stores the result in |out|.
  *
- * This is the equivalent of |vbyte_compress_sorted64|. It uses
- * delta encoding.
+ * This is the equivalent of |vbyte_compress_sorted64|.
+ * This function uses delta encoding. Set |previous| to the initial value,
+ * or 0.
  *
  * Returns the number of compressed bytes processed.
  */
 extern size_t
-vbyte_uncompress_sorted64(const uint8_t *in, uint64_t *out, size_t length);
+vbyte_uncompress_sorted64(const uint8_t *in, uint64_t *out, uint64_t previous,
+                size_t length);
 
 /**
  * Returns the value at the given |index| from a sequence of compressed
  * 32bit integers.
  *
- * This routine uses delta compression.
+ * This function uses delta encoding. Set |previous| to the initial value,
+ * or 0.
  *
  * |size| is the size of the byte array pointed to by |in|.
  * Make sure that |index| does not exceed the length of the sequence.
  */
 extern uint32_t
-vbyte_select_sorted32(const uint8_t *in, size_t size, size_t index);
+vbyte_select_sorted32(const uint8_t *in, size_t size, uint32_t previous,
+                size_t index);
 
 /**
  * Returns the value at the given |index| from a sequence of compressed
  * 64bit integers.
  *
- * This routine uses delta compression.
+ * This function uses delta encoding. Set |previous| to the initial value,
+ * or 0.
  *
  * |size| is the size of the byte array pointed to by |in|.
  * Make sure that |index| does not exceed the length of the sequence.
  */
 extern uint64_t
-vbyte_select_sorted64(const uint8_t *in, size_t size, size_t index);
+vbyte_select_sorted64(const uint8_t *in, size_t size, uint64_t previous,
+                size_t index);
 
 /**
  * Returns the value at the given |index| from a sequence of compressed
@@ -246,14 +262,15 @@ vbyte_search_unsorted64(const uint8_t *in, size_t length, uint64_t value);
  * not compare less than |value|.
  * The actual result is stored in |*actual|.
  *
- * This function uses delta encoding.
+ * This function uses delta encoding. Set |previous| to the initial value,
+ * or 0.
  *
  * Returns the index of the found element, or |length| if the key was not
  * found.
  */
 extern size_t
 vbyte_search_lower_bound_sorted32(const uint8_t *in, size_t length,
-                uint32_t value, uint32_t *actual);
+                uint32_t value, uint32_t previous, uint32_t *actual);
 
 /**
  * Performs a lower-bound search for |value| in a sequence of compressed 64bit
@@ -263,14 +280,15 @@ vbyte_search_lower_bound_sorted32(const uint8_t *in, size_t length,
  * not compare less than |value|.
  * The actual result is stored in |*actual|.
  *
- * This function uses delta encoding.
+ * This function uses delta encoding. Set |previous| to the initial value,
+ * or 0.
  *
  * Returns the index of the found element, or |length| if the key was not
  * found.
  */
 extern size_t
 vbyte_search_lower_bound_sorted64(const uint8_t *in, size_t length,
-                uint64_t value, uint64_t *actual);
+                uint64_t value, uint64_t previous, uint64_t *actual);
 
 
 /**

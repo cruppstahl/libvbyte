@@ -24,7 +24,7 @@ typedef signed char int8_t;
 #  include <stdint.h>
 #endif
 
-#if defined(__AVX__) || defined(__AVX2__) || defined(__SSE__)
+#if defined(__AVX__) || defined(__AVX2__) || defined(__SSE4__)
 #  define USE_MASKEDVBYTE 1
 #endif
 
@@ -362,11 +362,10 @@ compressed_size(uint64_t value)
 
 template<typename T>
 static inline size_t
-compressed_size_sorted(const T *in, size_t length)
+compressed_size_sorted(const T *in, size_t length, uint32_t previous)
 {
   size_t size = 0;
   const T *end = in + length;
-  T previous = 0;
 
   for (; in < end; in++) {
     size += compressed_size(*in - previous);
@@ -417,11 +416,10 @@ uncompress_unsorted(const uint8_t *in, T *out, size_t length)
 
 template<typename T>
 static inline size_t
-compress_sorted(const T *in, uint8_t *out, size_t length)
+compress_sorted(const T *in, uint8_t *out, T previous, size_t length)
 {
   const uint8_t *initial_out = out;
   const T *end = in + length;
-  T previous = 0;
 
   while (in < end) {
     out += write_int(out, *in - previous);
@@ -433,10 +431,9 @@ compress_sorted(const T *in, uint8_t *out, size_t length)
 
 template<typename T>
 static inline size_t
-uncompress_sorted(const uint8_t *in, T *out, size_t length)
+uncompress_sorted(const uint8_t *in, T *out, T previous, size_t length)
 {
   const uint8_t *initial_in = in;
-  T previous = 0;
 
   for (size_t i = 0; i < length; i++) {
     T current;
@@ -450,10 +447,8 @@ uncompress_sorted(const uint8_t *in, T *out, size_t length)
 
 template<typename T>
 static inline T
-select_sorted(const uint8_t *in, size_t index)
+select_sorted(const uint8_t *in, uint32_t previous, size_t index)
 {
-  T previous = 0;
-
   for (size_t i = 0; i <= index; i++) {
     T current;
     in += read_int(in, &current);
@@ -489,10 +484,9 @@ search_unsorted(const uint8_t *in, size_t length, T value)
 
 template<typename T>
 static inline size_t
-sorted_search(const uint8_t *in, size_t length, T value, T *actual)
+sorted_search(const uint8_t *in, size_t length, T value, T previous, T *actual)
 {
   T v;
-  T previous = 0;
 
   for (size_t i = 0; i < length; i++) {
     in += read_int(in, &v);
@@ -508,15 +502,17 @@ sorted_search(const uint8_t *in, size_t length, T value, T *actual)
 } // namespace vbyte
 
 size_t
-vbyte_compressed_size_sorted32(const uint32_t *in, size_t length)
+vbyte_compressed_size_sorted32(const uint32_t *in, size_t length,
+                uint32_t previous)
 {
-  return vbyte::compressed_size_sorted(in, length);
+  return vbyte::compressed_size_sorted(in, length, previous);
 }
 
 size_t
-vbyte_compressed_size_sorted64(const uint64_t *in, size_t length)
+vbyte_compressed_size_sorted64(const uint64_t *in, size_t length,
+                uint64_t previous)
 {
-  return vbyte::compressed_size_sorted(in, length);
+  return vbyte::compressed_size_sorted(in, length, previous);
 }
 
 size_t
@@ -560,49 +556,55 @@ vbyte_uncompress_unsorted64(const uint8_t *in, uint64_t *out, size_t length)
 }
 
 size_t
-vbyte_compress_sorted32(const uint32_t *in, uint8_t *out, size_t length)
+vbyte_compress_sorted32(const uint32_t *in, uint8_t *out, uint32_t previous,
+                size_t length)
 {
-  return vbyte::compress_sorted(in, out, length);
+  return vbyte::compress_sorted(in, out, previous, length);
 }
 
 size_t
-vbyte_compress_sorted64(const uint64_t *in, uint8_t *out, size_t length)
+vbyte_compress_sorted64(const uint64_t *in, uint8_t *out, uint64_t previous,
+                size_t length)
 {
-  return vbyte::compress_sorted(in, out, length);
+  return vbyte::compress_sorted(in, out, previous, length);
 }
 
 size_t
-vbyte_uncompress_sorted32(const uint8_t *in, uint32_t *out, size_t length)
+vbyte_uncompress_sorted32(const uint8_t *in, uint32_t *out, uint32_t previous,
+                size_t length)
 {
 #if defined(USE_MASKEDVBYTE)
   if (vbyte::is_avx_available())
-    return masked_vbyte_decode_delta(in, out, (uint64_t)length, 0);
+    return masked_vbyte_decode_delta(in, out, (uint64_t)length, previous);
 #endif
-  return vbyte::uncompress_sorted(in, out, length);
+  return vbyte::uncompress_sorted(in, out, previous, length);
 }
 
 size_t
-vbyte_uncompress_sorted64(const uint8_t *in, uint64_t *out, size_t length)
+vbyte_uncompress_sorted64(const uint8_t *in, uint64_t *out, uint64_t previous,
+                size_t length)
 {
-  return vbyte::uncompress_sorted(in, out, length);
+  return vbyte::uncompress_sorted(in, out, previous, length);
 }
 
 uint32_t
-vbyte_select_sorted32(const uint8_t *in, size_t size, size_t index)
+vbyte_select_sorted32(const uint8_t *in, size_t size, uint32_t previous,
+                size_t index)
 {
   (void)size;
 #if defined(USE_MASKEDVBYTE)
   if (vbyte::is_avx_available())
-    return masked_vbyte_select_delta(in, (uint64_t)size, 0, index);
+    return masked_vbyte_select_delta(in, (uint64_t)size, previous, index);
 #endif
-  return vbyte::select_sorted<uint32_t>(in, index);
+  return vbyte::select_sorted<uint32_t>(in, previous, index);
 }
 
 uint64_t
-vbyte_select_sorted64(const uint8_t *in, size_t size, size_t index)
+vbyte_select_sorted64(const uint8_t *in, size_t size, uint64_t previous,
+                size_t index)
 {
   (void)size;
-  return vbyte::select_sorted<uint64_t>(in, index);
+  return vbyte::select_sorted<uint64_t>(in, previous, index);
 }
 
 uint32_t
@@ -633,21 +635,21 @@ vbyte_search_unsorted64(const uint8_t *in, size_t length, uint64_t value)
 
 size_t
 vbyte_search_lower_bound_sorted32(const uint8_t *in, size_t length,
-                uint32_t value, uint32_t *actual)
+                uint32_t value, uint32_t previous, uint32_t *actual)
 {
 #if defined(USE_MASKEDVBYTE)
   if (vbyte::is_avx_available())
-    return (size_t)masked_vbyte_search_delta(in, (uint64_t)length, 0,
+    return (size_t)masked_vbyte_search_delta(in, (uint64_t)length, previous,
                   value, actual);
 #endif
-  return vbyte::sorted_search(in, length, value, actual);
+  return vbyte::sorted_search(in, length, value, previous, actual);
 }
 
 size_t
 vbyte_search_lower_bound_sorted64(const uint8_t *in, size_t length,
-                uint64_t value, uint64_t *actual)
+                uint64_t value, uint64_t previous, uint64_t *actual)
 {
-  return vbyte::sorted_search(in, length, value, actual);
+  return vbyte::sorted_search(in, length, value, previous, actual);
 }
 
 size_t
