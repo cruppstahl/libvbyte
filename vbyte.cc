@@ -362,7 +362,7 @@ compressed_size(uint64_t value)
 
 template<typename T>
 static inline size_t
-compressed_size_sorted(const T *in, size_t length, uint32_t previous)
+compressed_size_sorted(const T *in, size_t length, T previous)
 {
   size_t size = 0;
   const T *end = in + length;
@@ -447,7 +447,7 @@ uncompress_sorted(const uint8_t *in, T *out, T previous, size_t length)
 
 template<typename T>
 static inline T
-select_sorted(const uint8_t *in, uint32_t previous, size_t index)
+select_sorted(const uint8_t *in, T previous, size_t index)
 {
   for (size_t i = 0; i <= index; i++) {
     T current;
