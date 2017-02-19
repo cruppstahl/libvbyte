@@ -47,7 +47,7 @@ run_select_test(const std::vector<typename Traits::type> &plain,
   Timer<boost::chrono::high_resolution_clock> t;
   for (int l = 0; l < loops; l++) {
     for (uint32_t i = 0; i < plain.size(); i += 1 + plain.size() / 100) {
-      uint32_t v = Traits::select(&z[0], z.size(), i);
+      typename Traits::type v = Traits::select(&z[0], z.size(), i);
       assert(plain[i] == v);
     }
   }
@@ -106,7 +106,7 @@ run_tests(size_t length)
   std::vector<typename Traits::type> out(length);
 
   for (size_t i = 0; i < length; i++)
-    plain.push_back(i * 7);
+    plain.push_back(Traits::make_plain_value(i));
 
   // compress the data
   run_compression_test<Traits>(plain, z);
@@ -127,6 +127,10 @@ run_tests(size_t length)
 struct Sorted32Traits {
   typedef uint32_t type;
   static constexpr const char *name = "Sorted32";
+
+  static type make_plain_value(size_t i) {
+    return i * 7;
+  }
 
   static size_t compress(const type *in, uint8_t *out, size_t length) {
     return vbyte_compress_sorted32(in, out, 0, length);
@@ -158,6 +162,10 @@ struct Sorted64Traits {
   typedef uint64_t type;
   static constexpr const char *name = "Sorted64";
 
+  static type make_plain_value(size_t i) {
+    return i * i;
+  }
+
   static size_t compress(const type *in, uint8_t *out, size_t length) {
     return vbyte_compress_sorted64(in, out, 0, length);
   }
@@ -187,6 +195,10 @@ struct Sorted64Traits {
 struct Unsorted32Traits {
   typedef uint32_t type;
   static constexpr const char *name = "Unsorted32";
+
+  static type make_plain_value(size_t i) {
+    return i * 7;
+  }
 
   static size_t compress(const type *in, uint8_t *out, size_t length) {
     return vbyte_compress_unsorted32(in, out, length);
@@ -218,6 +230,10 @@ struct Unsorted32Traits {
 struct Unsorted64Traits {
   typedef uint64_t type;
   static constexpr const char *name = "Unsorted64";
+
+  static type make_plain_value(size_t i) {
+    return i * i;
+  }
 
   static size_t compress(const type *in, uint8_t *out, size_t length) {
     return vbyte_compress_unsorted64(in, out, length);
